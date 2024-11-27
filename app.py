@@ -7,20 +7,12 @@ from process_analyse import BusinessAnalystAgent
 import pandas as pd
 from io import BytesIO
 
-
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
 
 def stylable_container(key, css_styles):
     """
     Create a stylable container with custom CSS.
-
-    Args:
-    key (int): The index of the child div to style.
-    css_styles (str): CSS styles to apply to the container.
-
-    Returns:
-    streamlit.container: A stylable Streamlit container.
     """
     st.markdown(f"""
         <style>
@@ -34,9 +26,6 @@ def stylable_container(key, css_styles):
 def add_bg_from_local(image_file):
     """
     Add a background image to the Streamlit app from a local file.
-
-    Args:
-    image_file (str): Path to the local image file.
     """
     with Path(image_file).open("rb") as file:
         encoded_string = base64.b64encode(file.read()).decode()
@@ -57,9 +46,6 @@ def add_bg_from_local(image_file):
 def load_css(css_file):
     """
     Load and apply CSS from a file to the Streamlit app.
-
-    Args:
-    css_file (str): Path to the CSS file.
     """
     with open(css_file, "r") as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
@@ -67,12 +53,6 @@ def load_css(css_file):
 def get_button_style(button_class):
     """
     Get the button style based on its class.
-
-    Args:
-    button_class (str): The class of the button ('current', 'previous', or other).
-
-    Returns:
-    str: CSS style for the button.
     """
     if button_class == "current":
         return "background-color: #01374C; color: white; font-weight: bold; font-size: 24px;"
@@ -84,9 +64,6 @@ def get_button_style(button_class):
 def setup_navigation():
     """
     Set up the navigation sidebar for the app.
-
-    Returns:
-    list: A list of page names.
     """
     st.sidebar.markdown("<h1 style='text-align: center; color: #AC8D61;'>Navegação</h1>", unsafe_allow_html=True)
     
@@ -130,24 +107,74 @@ def convert_df_to_excel(df):
 
 def render_diagnostico():
     """
-    Render the "Oportunidade de Melhoria" page.
-    This page includes a form for user input and displays opportunities for improvement.
+    Render the "Oportunidade de Melhoria" page with input preservation.
     """
-    # Create a form for user input
+    # Initialize session state for form inputs if not exists
+    if 'form_inputs' not in st.session_state:
+        st.session_state.form_inputs = {
+            'ramo_empresa': '',
+            'direcionadores': '',
+            'nome_processo': '',
+            'atividade': '',
+            'evento': '',
+            'causa': ''
+        }
+
+    # Create a form for user input with preserved values
     with st.form(key='oportunidade_melhoria_form'):
-        # Input fields
-        ramo_empresa = st.text_input("Ramo da empresa", placeholder="Digite o ramo da empresa")
-        direcionadores = st.text_input("Direcionadores", placeholder="Digite os direcionadores de negócios")
-        nome_processo = st.text_input("Nome do processo", placeholder="Digite o nome do processo")
-        atividade = st.text_input("Atividade", placeholder="Digite a atividade")
-        evento = st.text_input("Evento", placeholder="Digite o evento")
-        causa = st.text_input("Causa", placeholder="Digite a causa")
+        # Input fields with preserved values
+        ramo_empresa = st.text_input(
+            "Ramo da empresa", 
+            value=st.session_state.form_inputs['ramo_empresa'], 
+            placeholder="Digite o ramo da empresa",
+            key='input_ramo_empresa'
+        )
+        direcionadores = st.text_input(
+            "Direcionadores", 
+            value=st.session_state.form_inputs['direcionadores'], 
+            placeholder="Digite os direcionadores de negócios",
+            key='input_direcionadores'
+        )
+        nome_processo = st.text_input(
+            "Nome do processo", 
+            value=st.session_state.form_inputs['nome_processo'], 
+            placeholder="Digite o nome do processo",
+            key='input_nome_processo'
+        )
+        atividade = st.text_input(
+            "Atividade", 
+            value=st.session_state.form_inputs['atividade'], 
+            placeholder="Digite a atividade",
+            key='input_atividade'
+        )
+        evento = st.text_input(
+            "Evento", 
+            value=st.session_state.form_inputs['evento'], 
+            placeholder="Digite o evento",
+            key='input_evento'
+        )
+        causa = st.text_input(
+            "Causa", 
+            value=st.session_state.form_inputs['causa'], 
+            placeholder="Digite a causa",
+            key='input_causa'
+        )
 
         # Submit button
         submit_button = st.form_submit_button(label='Obter Oportunidade de melhorias')
 
     # Process form submission
     if submit_button:
+        # Update session state inputs
+        st.session_state.form_inputs = {
+            'ramo_empresa': ramo_empresa,
+            'direcionadores': direcionadores,
+            'nome_processo': nome_processo,
+            'atividade': atividade,
+            'evento': evento,
+            'causa': causa
+        }
+
         if ramo_empresa and direcionadores and nome_processo and atividade and evento and causa:              
             
             #Apply AI
@@ -172,74 +199,101 @@ def render_diagnostico():
 
 def render_planilha_final():
     """
-    Render the "Planilha Final" page with a filter for "Oportunidade de Melhoria" 
-    and display data for selected opportunity in an editable form.
+    Render the "Planilha Final" page showing all opportunities 
+    with editable forms for each.
     """
     # Retrieve 'resultados' from session state
     if 'resultados' not in st.session_state:
         st.warning("Não foi executado a obtenção das Oportunidade de melhorias.")
         return
+    
     resultados = st.session_state.resultados
     st.session_state.resultados_dict = resultados.to_dict('records')
 
-    # Filter selection for "Oportunidade de Melhoria"
-    st.write("Selecione a Oportunidade de Melhoria para editar seus dados:")
-    
-    oportunidades = [row['Oportunidade de Melhoria'] for row in st.session_state.resultados_dict]
-    selected_opportunity = st.selectbox("Oportunidade de Melhoria", ["Selecione"] + oportunidades)
+    # Create a container to hold all opportunity forms
+    st.write("## Todas as Oportunidades de Melhoria")
 
-    # Display and edit data for selected opportunity
-    if selected_opportunity != "Selecione":
-        # Find the selected row based on "Oportunidade de Melhoria"
-        selected_row = next((row for row in st.session_state.resultados_dict if row['Oportunidade de Melhoria'] == selected_opportunity), None)
-        
-        if selected_row:
-            with st.form(key='planilha_final_form'):
-                st.write(f"Editando dados para: **{selected_opportunity}**")
+    # Track if any changes were made
+    changes_made = False
 
-                # Editable fields for selected row
-                oportunidade_de_melhoria = st.text_area("Oportunidade de Melhoria", value=selected_row['Oportunidade de Melhoria'], key="oportunidade", height=100)
-                solucao = st.text_area("Solução", value=selected_row['Solução'], key="solucao", height=100)
-                backlog_de_atividades = st.text_area("Backlog de Atividades", value=selected_row['Backlog de Atividades'], key="backlog", height=100)
-                investimento = st.text_area("Investimento", value=selected_row['Investimento'], key="investimento", height=100)
-                ganhos = st.text_area("Ganhos", value=selected_row['Ganhos'], key="ganhos", height=100)
-                riscos = st.text_area("Riscos", value=selected_row['Riscos'], key="riscos", height=100)
+    # Iterate through each opportunity and create an editable form
+    for idx, row in enumerate(st.session_state.resultados_dict):
+        with st.form(key=f'opportunity_form_{idx}'):
+            st.write(f"### Oportunidade {idx + 1}")
+            
+            # Display each field in a text area for editing
+            oportunidade_de_melhoria = st.text_area(
+                "Oportunidade de Melhoria", 
+                value=row['Oportunidade de Melhoria'], 
+                key=f"oportunidade_{idx}", 
+                height=100
+            )
+            solucao = st.text_area(
+                "Solução", 
+                value=row['Solução'], 
+                key=f"solucao_{idx}", 
+                height=100
+            )
+            backlog_de_atividades = st.text_area(
+                "Backlog de Atividades", 
+                value=row.get('Backlog de Atividades', ''), 
+                key=f"backlog_{idx}", 
+                height=100
+            )
+            investimento = st.text_area(
+                "Investimento", 
+                value=row.get('Investimento', ''), 
+                key=f"investimento_{idx}", 
+                height=100
+            )
+            ganhos = st.text_area(
+                "Ganhos", 
+                value=row.get('Ganhos', ''), 
+                key=f"ganhos_{idx}", 
+                height=100
+            )
+            riscos = st.text_area(
+                "Riscos", 
+                value=row.get('Riscos', ''), 
+                key=f"riscos_{idx}", 
+                height=100
+            )
 
-                # Submit button for saving edits
-                submit_button = st.form_submit_button(label="Salvar Edição")
+            # Submit button for each form
+            submit_button = st.form_submit_button(label=f"Salvar Edição para Oportunidade {idx + 1}")
 
-            # Process form submission and save edits
+            # Process form submission
             if submit_button:
-                # Update the selected row in session state with new values
-                selected_row.update({
+                # Update the row in the dictionary
+                row.update({
                     'Oportunidade de Melhoria': oportunidade_de_melhoria,
                     'Solução': solucao,
                     'Backlog de Atividades': backlog_de_atividades,
                     'Investimento': investimento,
-                    'Ganhos': ganhos
+                    'Ganhos': ganhos,
+                    'Riscos': riscos
                 })
+                changes_made = True
+                st.success(f"Edição salva para Oportunidade {idx + 1}")
 
-                # Update DataFrame with edited row
-                edited_df = pd.DataFrame(st.session_state.resultados_dict)
-                st.session_state.resultados = edited_df
+    # If changes were made, update the DataFrame and provide download
+    if changes_made:
+        # Update DataFrame with edited rows
+        edited_df = pd.DataFrame(st.session_state.resultados_dict)
+        st.session_state.resultados = edited_df
 
-                # Convert updated DataFrame to Excel for download
-                excel_file = convert_df_to_excel(edited_df)
-                st.success("Edição salva com sucesso!")
-                st.download_button(
-                    label="📥 Baixar Excel",
-                    data=excel_file,
-                    file_name='Oportunidade de melhorias final.xlsx',
-                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                )
+        # Convert updated DataFrame to Excel for download
+        excel_file = convert_df_to_excel(edited_df)
+        st.download_button(
+            label="📥 Baixar Excel com Todas as Edições",
+            data=excel_file,
+            file_name='Oportunidade_de_melhorias_final.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
 
 def main():
     """
     Main function to run the Streamlit app.
-    
-    This function sets up the page configuration, loads the background and CSS,
-    sets up navigation, and renders the appropriate page content based on user navigation.
-    It also handles the progress bar and navigation buttons.
     """
     st.set_page_config(page_title="Oportunidade de Melhoria", layout="wide")
     add_bg_from_local('background.png')
